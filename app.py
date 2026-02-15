@@ -19,33 +19,44 @@ def get_db_connection():
     return conn
 
 @app.route('/init-db')
+@app.route('/init-db')
 def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Core Tables (Using SERIAL for PostgreSQL)
-    cursor.execute('CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, hobbies TEXT, bio TEXT, profile_pic TEXT)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, user_id INTEGER, content TEXT, image_url TEXT)')
-    
-    # Messages Table
-    cursor.execute('''CREATE TABLE IF NOT EXISTS messages 
-                      (id SERIAL PRIMARY KEY, sender_id INTEGER, receiver_id INTEGER, 
-                       message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_read INTEGER DEFAULT 0)''')
-    
-    # Calendar & Wallet Tables
-    cursor.execute('CREATE TABLE IF NOT EXISTS calendar_events (id SERIAL PRIMARY KEY, user_id INTEGER, event_text TEXT, event_date TEXT, username TEXT)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS wallet_transactions (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, amount REAL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS withdrawal_requests (id SERIAL PRIMARY KEY, requester_id INTEGER, username TEXT, amount REAL, reason TEXT, status TEXT DEFAULT \'pending\')')
-    cursor.execute('CREATE TABLE IF NOT EXISTS votes (id SERIAL PRIMARY KEY, request_id INTEGER, user_id INTEGER, UNIQUE(request_id, user_id))')
-    
-    # Notifications Table
-    cursor.execute('''CREATE TABLE IF NOT EXISTS notifications 
-                      (id SERIAL PRIMARY KEY, user_id INTEGER, 
-                       content TEXT, is_read INTEGER DEFAULT 0)''')
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return "Database Initialized Successfully!"
+    try:
+        # Check if the connection string even exists
+        if not os.environ.get('SUPABASE_DB_URL'):
+            return "❌ ERROR: SUPABASE_DB_URL is missing from Vercel Environment Variables!", 500
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Core Tables
+        cursor.execute('CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, hobbies TEXT, bio TEXT, profile_pic TEXT)')
+        cursor.execute('CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, user_id INTEGER, content TEXT, image_url TEXT)')
+        
+        # Messages Table
+        cursor.execute('''CREATE TABLE IF NOT EXISTS messages 
+                          (id SERIAL PRIMARY KEY, sender_id INTEGER, receiver_id INTEGER, 
+                           message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_read INTEGER DEFAULT 0)''')
+        
+        # Calendar & Wallet Tables
+        cursor.execute('CREATE TABLE IF NOT EXISTS calendar_events (id SERIAL PRIMARY KEY, user_id INTEGER, event_text TEXT, event_date TEXT, username TEXT)')
+        cursor.execute('CREATE TABLE IF NOT EXISTS wallet_transactions (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, amount REAL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
+        cursor.execute('CREATE TABLE IF NOT EXISTS withdrawal_requests (id SERIAL PRIMARY KEY, requester_id INTEGER, username TEXT, amount REAL, reason TEXT, status TEXT DEFAULT \'pending\')')
+        cursor.execute('CREATE TABLE IF NOT EXISTS votes (id SERIAL PRIMARY KEY, request_id INTEGER, user_id INTEGER, UNIQUE(request_id, user_id))')
+        
+        # Notifications Table
+        cursor.execute('''CREATE TABLE IF NOT EXISTS notifications 
+                          (id SERIAL PRIMARY KEY, user_id INTEGER, 
+                           content TEXT, is_read INTEGER DEFAULT 0)''')
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return "✅ SUCCESS: Database Initialized Successfully!"
+        
+    except Exception as e:
+        # This will print the ACTUAL error to your browser screen
+        return f"❌ DATABASE CRASH: {str(e)}", 500
 
 # --- THE MAGIC NOTIFICATION LOGIC ---
 @app.context_processor
@@ -275,3 +286,4 @@ app = app
 if __name__ == '__main__':
 
     app.run(debug=True, port=5001)
+
