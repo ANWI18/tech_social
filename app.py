@@ -13,10 +13,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # --- DATABASE CONNECTION LOGIC ---
 def get_db_connection():
-    # Use the variable you set in Vercel/Environment Variables
     db_url = os.environ.get('SUPABASE_DB_URL')
-    conn = psycopg2.connect(db_url)
-    return conn
+    return psycopg2.connect(db_url)
 
 @app.route('/init-db')
 @app.route('/init-db')
@@ -286,4 +284,5 @@ app = app
 if __name__ == '__main__':
 
     app.run(debug=True, port=5001)
+
 
