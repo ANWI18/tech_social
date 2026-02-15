@@ -271,5 +271,7 @@ def settings():
     conn.close()
     return render_template('settings.html', user=user)
 
+app = app
 if __name__ == '__main__':
+
     app.run(debug=True, port=5001)
