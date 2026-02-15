@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squad Treasury | Voting Governance</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #020617; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(15, 23, 42, 0.8); border: 1px solid #1e293b; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .vote-card { border-left: 5px solid #eab308; background: #0f172a; margin-bottom: 15px; padding: 15px; border-radius: 12px; transition: transform 0.2s; }
+        .vote-card:hover { transform: translateX(5px); }
+        .form-control { background: #1e293b !important; color: white !important; border: 1px solid #334155 !important; border-radius: 10px; }
+        .btn-info { background: #38bdf8; border: none; font-weight: bold; border-radius: 10px; }
+        .btn-warning { font-weight: bold; border-radius: 10px; }
+        .history-item { border-bottom: 1px solid #1e293b; padding: 10px 0; font-size: 0.9rem; }
+        .badge-votes { background: #334155; color: #38bdf8; font-size: 0.8rem; }
+    </style>
+</head>
+<body class="p-4">
+
+<div class="container">
+    <div class="row g-4">
+        <div class="col-12 text-center mb-2">
+            <h1 class="fw-bold text-info">SQUAD TREASURY 🏦</h1>
+            <p class="text-secondary">Shared Governance & Collective Spending</p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="/" class="text-info text-decoration-none small">← Back to Feed</a>
+                {% if unread_msgs > 0 %}
+                <span class="badge bg-danger rounded-pill">{{ unread_msgs }} New Messages</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="glass-card text-center border-info h-100">
+                <h6 class="text-secondary fw-bold text-uppercase">Total Shared Balance</h6>
+                <h1 class="display-3 fw-bold text-white">${{ "{:,.2f}".format(balance) }}</h1>
+                <form method="POST" class="mt-4">
+                    <div class="input-group">
+                        <input type="number" name="pitch_amount" class="form-control" placeholder="Pitch in amount..." step="0.01" required>
+                        <button class="btn btn-info px-4">Pitch In</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="glass-card text-center h-100" style="border-color: #10b981;">
+                <h6 class="text-secondary fw-bold text-uppercase">Your Contribution</h6>
+                <h1 class="display-3 fw-bold text-success">${{ "{:,.2f}".format(personal) }}</h1>
+                <button class="btn btn-outline-warning w-100 mt-4" data-bs-toggle="collapse" data-bs-target="#reqForm">Request Withdrawal</button>
+            </div>
+        </div>
+
+        <div class="col-12 collapse" id="reqForm">
+            <div class="glass-card border-warning">
+                <h5 class="text-warning mb-3">Create a Spending Proposal</h5>
+                <form action="/request_money" method="POST" class="row g-3">
+                    <div class="col-md-4"><label class="small text-secondary">Amount ($)</label><input type="number" name="amount" class="form-control" placeholder="e.g. 50.00" step="0.01" required></div>
+                    <div class="col-md-6"><label class="small text-secondary">Purpose</label><input type="text" name="reason" class="form-control" placeholder="e.g. Server hosting costs" required></div>
+                    <div class="col-md-2 d-flex align-items-end"><button class="btn btn-warning w-100">Propose</button></div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold m-0">Active Proposals</h5>
+                <span class="badge bg-dark border border-secondary text-secondary">2/3 Approval Required</span>
+            </div>
+            {% if requests %}
+                {% for r in requests %}
+                <div class="vote-card d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="d-flex align-items-center gap-2"><span class="text-info fw-bold">@{{ r.user }}</span><span class="text-white-50">requests</span><span class="text-warning fw-bold">${{ "{:,.2f}".format(r.amount) }}</span></div>
+                        <div class="text-white mb-2 small italic">"{{ r.reason }}"</div>
+                        <span class="badge badge-votes">{{ r.votes }} / {{ total_users }} Members Approved</span>
+                    </div>
+                    <div>
+                        {% if r.status == 'pending' %}
+                            <a href="/vote/{{ r.id }}" class="btn btn-sm btn-warning px-3 shadow-sm">Approve ✅</a>
+                        {% else %}
+                            <span class="badge bg-success px-3 py-2">PAID & CLOSED</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="glass-card text-center py-5"><p class="text-secondary m-0">No active proposals.</p></div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-5">
+            <h5 class="fw-bold mb-3">Ledger Activity</h5>
+            <div class="glass-card">
+                {% if history %}
+                    {% for h in history %}
+                    <div class="history-item d-flex justify-content-between">
+                        <div><span class="text-info fw-bold">@{{ h[0] }}</span><div class="text-secondary small" style="font-size: 0.7rem;">{{ h[2] }}</div></div>
+                        <span class="{{ 'text-success' if h[1] > 0 else 'text-danger' }} fw-bold">{{ '+' if h[1] > 0 else '' }}${{ "{:,.2f}".format(h[1]) }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-center text-secondary small py-3">No activity yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

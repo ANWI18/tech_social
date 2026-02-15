@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechSocial - Calendar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #020617; color: white; padding-top: 50px; font-family: 'Segoe UI', sans-serif; }
+        
+        .card { 
+            background: #0f172a; 
+            border: 1px solid #334155; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+
+        /* Input Styling with "Glow" for visibility */
+        .form-control { 
+            background: #1e293b !important; 
+            color: white !important; 
+            border: 1px solid #475569 !important; 
+            border-radius: 10px;
+        }
+
+        /* Making the browser's internal calendar/clock icons BRIGHT cyan */
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(65%) sepia(90%) border-radius(5px);
+            cursor: pointer;
+            font-size: 1.2rem;
+            background-color: #38bdf8;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .event-card { 
+            background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%); 
+            border-left: 5px solid #38bdf8; 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            border-radius: 0 12px 12px 0;
+        }
+        
+        .event-text {
+            color: #f8fafc;
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .date-badge { 
+            background: #38bdf8; 
+            color: #020617; 
+            font-weight: bold; 
+            padding: 4px 10px; 
+            border-radius: 6px; 
+            font-size: 0.85rem; 
+        }
+
+        .user-tag { color: #38bdf8; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-info fw-bold m-0">🗓️ Shared Schedule</h2>
+                    <a href="/" class="btn btn-outline-info btn-sm rounded-pill">Back to Feed</a>
+                </div>
+
+                <form method="POST" class="row g-2 mb-5">
+                    <div class="col-md-6">
+                        <label class="small text-info fw-bold mb-1">TASK NAME</label>
+                        <input type="text" name="event_text" class="form-control" placeholder="What's the plan?" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small text-info fw-bold mb-1">📅 DATE & 🕒 TIME</label>
+                        <input type="datetime-local" name="event_date" class="form-control" required title="Click the icon to select date and time">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-info w-100 fw-bold text-dark" style="height: 42px;">Add</button>
+                    </div>
+                </form>
+
+                <h5 class="text-secondary fw-bold mb-3 text-uppercase">Upcoming Squad Tasks</h5>
+                <div class="event-list">
+                    {% if events %}
+                        {% for e in events %}
+                        <div class="event-card shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="date-badge">🗓️ {{ e[1] }}</span>
+                                <span class="user-tag">@{{ e[2] }}</span>
+                            </div>
+                            <span class="event-text">{{ e[0] }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5 text-secondary">
+                            <p class="fs-5">The calendar is empty. Schedule something!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
