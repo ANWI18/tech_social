@@ -12,9 +12,13 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # --- DATABASE CONNECTION LOGIC ---
+# --- DATABASE CONNECTION LOGIC ---
 def get_db_connection():
     db_url = os.environ.get('SUPABASE_DB_URL')
-    return psycopg2.connect(db_url)
+    if not db_url:
+        raise ValueError("SUPABASE_DB_URL is not set in Environment Variables")
+    # .strip() is CRITICAL: it removes accidental spaces from Vercel settings
+    return psycopg2.connect(db_url.strip())
 
 @app.route('/init-db')
 @app.route('/init-db')
@@ -284,5 +288,6 @@ app = app
 if __name__ == '__main__':
 
     app.run(debug=True, port=5001)
+
 
 
