@@ -8,59 +8,38 @@ app = Flask(__name__)
 app.secret_key = 'hackathon_secret_key'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-# Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- DATABASE CONNECTION LOGIC ---
-# --- DATABASE CONNECTION LOGIC ---
 def get_db_connection():
     db_url = os.environ.get('SUPABASE_DB_URL')
     if not db_url:
         raise ValueError("SUPABASE_DB_URL is not set in Environment Variables")
-    # .strip() is CRITICAL: it removes accidental spaces from Vercel settings
     return psycopg2.connect(db_url.strip())
 
 @app.route('/init-db')
-@app.route('/init-db')
 def init_db():
     try:
-        # Check if the connection string even exists
-        if not os.environ.get('SUPABASE_DB_URL'):
-            return "❌ ERROR: SUPABASE_DB_URL is missing from Vercel Environment Variables!", 500
-            
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # Core Tables
         cursor.execute('CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, hobbies TEXT, bio TEXT, profile_pic TEXT)')
         cursor.execute('CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, user_id INTEGER, content TEXT, image_url TEXT)')
-        
-        # Messages Table
         cursor.execute('''CREATE TABLE IF NOT EXISTS messages 
                           (id SERIAL PRIMARY KEY, sender_id INTEGER, receiver_id INTEGER, 
                            message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_read INTEGER DEFAULT 0)''')
-        
-        # Calendar & Wallet Tables
         cursor.execute('CREATE TABLE IF NOT EXISTS calendar_events (id SERIAL PRIMARY KEY, user_id INTEGER, event_text TEXT, event_date TEXT, username TEXT)')
         cursor.execute('CREATE TABLE IF NOT EXISTS wallet_transactions (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, amount REAL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
         cursor.execute('CREATE TABLE IF NOT EXISTS withdrawal_requests (id SERIAL PRIMARY KEY, requester_id INTEGER, username TEXT, amount REAL, reason TEXT, status TEXT DEFAULT \'pending\')')
         cursor.execute('CREATE TABLE IF NOT EXISTS votes (id SERIAL PRIMARY KEY, request_id INTEGER, user_id INTEGER, UNIQUE(request_id, user_id))')
-        
-        # Notifications Table
         cursor.execute('''CREATE TABLE IF NOT EXISTS notifications 
                           (id SERIAL PRIMARY KEY, user_id INTEGER, 
                            content TEXT, is_read INTEGER DEFAULT 0)''')
-        
         conn.commit()
         cursor.close()
         conn.close()
         return "✅ SUCCESS: Database Initialized Successfully!"
-        
     except Exception as e:
-        # This will print the ACTUAL error to your browser screen
         return f"❌ DATABASE CRASH: {str(e)}", 500
 
-# --- THE MAGIC NOTIFICATION LOGIC ---
 @app.context_processor
 def inject_unread():
     if 'user_id' in session:
@@ -100,8 +79,7 @@ def post():
         file_path = f"/static/uploads/{filename}"
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO posts (user_id, content, image_url) VALUES (%s, %s, %s)', 
-                  (session['user_id'], content, file_path))
+    cursor.execute('INSERT INTO posts (user_id, content, image_url) VALUES (%s, %s, %s)', (session['user_id'], content, file_path))
     conn.commit()
     cursor.close()
     conn.close()
@@ -125,66 +103,54 @@ def calendar():
     
     cursor.execute('UPDATE notifications SET is_read = 1 WHERE user_id = %s AND content LIKE %s', (session['user_id'], 'New Squad Event%'))
     conn.commit()
-    cursor.execute('SELECT event_text, event_date, username FROM calendar_events ORDER BY event_date ASC')
+    # Added 'id' and 'user_id' to select so delete button works
+    cursor.execute('SELECT event_text, event_date, username, id, user_id FROM calendar_events ORDER BY event_date ASC')
     events = cursor.fetchall()
     cursor.close()
     conn.close()
     return render_template('calendar.html', events=events)
-    @app.route('/delete_task/<int:task_id>')
+
+@app.route('/delete_task/<int:task_id>')
 def delete_task(task_id):
     if 'user_id' not in session: return redirect(url_for('login'))
-    
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Security: only delete if the task belongs to the logged-in user
-    cursor.execute('DELETE FROM tasks WHERE id = %s AND user_id = %s', (task_id, session['user_id']))
+    cursor.execute('DELETE FROM calendar_events WHERE id = %s AND user_id = %s', (task_id, session['user_id']))
     conn.commit()
     cursor.close()
     conn.close()
-    
-    return redirect(url_for('calendar')) # Redirect back to the calendar page
+    return redirect(url_for('calendar'))
 
 @app.route('/messages/<int:receiver_id>', methods=['GET', 'POST'])
-@app.route('/chat/<int:receiver_id>', methods=['GET', 'POST']) # Ensure route has methods
+@app.route('/chat/<int:receiver_id>', methods=['GET', 'POST'])
 def chat(receiver_id):
     if 'user_id' not in session: return redirect(url_for('login'))
-    
     conn = get_db_connection()
     cursor = conn.cursor()
-
     if request.method == 'POST':
         msg = request.form.get('message', '').strip()
         if msg:
-            cursor.execute('INSERT INTO messages (sender_id, receiver_id, message) VALUES (%s, %s, %s)', 
-                           (session['user_id'], receiver_id, msg))
+            cursor.execute('INSERT INTO messages (sender_id, receiver_id, message) VALUES (%s, %s, %s)', (session['user_id'], receiver_id, msg))
             conn.commit()
-        
-        # --- CRITICAL CHANGE START ---
         cursor.close()
         conn.close()
-        # This stops the code here and reloads the page as a 'GET' request
         return redirect(url_for('chat', receiver_id=receiver_id))
-        # --- CRITICAL CHANGE END ---
 
-    # Everything below only happens on a 'GET' request (loading the page)
     cursor.execute('UPDATE messages SET is_read = 1 WHERE sender_id = %s AND receiver_id = %s', (receiver_id, session['user_id']))
     conn.commit()
-
     cursor.execute('SELECT sender_id, message, id FROM messages WHERE (sender_id=%s AND receiver_id=%s) OR (sender_id=%s AND receiver_id=%s) ORDER BY timestamp ASC', (session['user_id'], receiver_id, receiver_id, session['user_id']))
     chats = cursor.fetchall()
-
     cursor.execute('SELECT username FROM users WHERE id = %s', (receiver_id,))
     receiver = cursor.fetchone()
-
     cursor.close()
     conn.close()
     return render_template('chat.html', chats=chats, receiver=receiver, receiver_id=receiver_id)
+
 @app.route('/delete_message/<int:msg_id>/<int:receiver_id>')
 def delete_message(msg_id, receiver_id):
     if 'user_id' not in session: return redirect(url_for('login'))
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Ensure ONLY the person who sent the message can delete it
     cursor.execute('DELETE FROM messages WHERE id = %s AND sender_id = %s', (msg_id, session['user_id']))
     conn.commit()
     cursor.close()
@@ -209,7 +175,7 @@ def wallet():
     personal = cursor.fetchone()[0] or 0
     cursor.execute('SELECT username, amount, timestamp FROM wallet_transactions ORDER BY id DESC LIMIT 5')
     history = cursor.fetchall()
-    cursor.execute('SELECT * FROM withdrawal_requests ORDER BY id DESC')
+    cursor.execute('SELECT id, requester_id, username, amount, reason, status FROM withdrawal_requests ORDER BY id DESC')
     raw_requests = cursor.fetchall()
     cursor.execute('SELECT COUNT(*) FROM users')
     total_users = cursor.fetchone()[0]
@@ -217,7 +183,7 @@ def wallet():
     for r in raw_requests:
         cursor.execute('SELECT COUNT(*) FROM votes WHERE request_id = %s', (r[0],))
         v_count = cursor.fetchone()[0]
-        formatted_requests.append({'id': r[0], 'user': r[2], 'amount': r[3], 'reason': r[4], 'status': r[5], 'votes': v_count})
+        formatted_requests.append({'id': r[0], 'requester_id': r[1], 'user': r[2], 'amount': r[3], 'reason': r[4], 'status': r[5], 'votes': v_count})
     cursor.close()
     conn.close()
     return render_template('wallet.html', balance=total, personal=personal, history=history, requests=formatted_requests, total_users=total_users)
@@ -233,6 +199,18 @@ def request_money():
     others = cursor.fetchall()
     for u in others:
         cursor.execute('INSERT INTO notifications (user_id, content) VALUES (%s, %s)', (u[0], f"{session['username']} requested money!"))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return redirect(url_for('wallet'))
+
+@app.route('/delete_proposal/<int:proposal_id>')
+def delete_proposal(proposal_id):
+    if 'user_id' not in session: return redirect(url_for('login'))
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Corrected table name and column name based on init-db
+    cursor.execute('DELETE FROM withdrawal_requests WHERE id = %s AND requester_id = %s', (proposal_id, session['user_id']))
     conn.commit()
     cursor.close()
     conn.close()
@@ -260,19 +238,6 @@ def vote(request_id):
     cursor.close()
     conn.close()
     return redirect(url_for('wallet'))
-    @app.route('/delete_proposal/<int:proposal_id>')
-def delete_proposal(proposal_id):
-    if 'user_id' not in session: return redirect(url_for('login'))
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Security: ensures you can't delete someone else's money proposal
-    cursor.execute('DELETE FROM proposals WHERE id = %s AND user_id = %s', (proposal_id, session['user_id']))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    return redirect(url_for('wallet')) # Redirect back to the wallet page
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -338,13 +303,5 @@ def settings():
     conn.close()
     return render_template('settings.html', user=user)
 
-app = app
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
-
-
-
-
-
-
-
