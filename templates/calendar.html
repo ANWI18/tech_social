@@ -92,7 +92,12 @@
                         <div class="event-card shadow-sm">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="date-badge">🗓️ {{ e[1] }}</span>
-                                <span class="user-tag">@{{ e[2] }}</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="user-tag">@{{ e[2] }}</span>
+                                    {% if e[4] == session['user_id'] %}
+                                        <a href="/delete_task/{{ e[3] }}" class="text-danger ms-2" style="text-decoration:none;" onclick="return confirm('Delete this task?')">🗑️</a>
+                                    {% endif %}
+                                </div>
                             </div>
                             <span class="event-text">{{ e[0] }}</span>
                         </div>
