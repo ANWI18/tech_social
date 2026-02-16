@@ -130,6 +130,19 @@ def calendar():
     cursor.close()
     conn.close()
     return render_template('calendar.html', events=events)
+    @app.route('/delete_task/<int:task_id>')
+def delete_task(task_id):
+    if 'user_id' not in session: return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Security: only delete if the task belongs to the logged-in user
+    cursor.execute('DELETE FROM tasks WHERE id = %s AND user_id = %s', (task_id, session['user_id']))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return redirect(url_for('calendar')) # Redirect back to the calendar page
 
 @app.route('/messages/<int:receiver_id>', methods=['GET', 'POST'])
 @app.route('/chat/<int:receiver_id>', methods=['GET', 'POST']) # Ensure route has methods
@@ -247,6 +260,19 @@ def vote(request_id):
     cursor.close()
     conn.close()
     return redirect(url_for('wallet'))
+    @app.route('/delete_proposal/<int:proposal_id>')
+def delete_proposal(proposal_id):
+    if 'user_id' not in session: return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Security: ensures you can't delete someone else's money proposal
+    cursor.execute('DELETE FROM proposals WHERE id = %s AND user_id = %s', (proposal_id, session['user_id']))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return redirect(url_for('wallet')) # Redirect back to the wallet page
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -315,6 +341,7 @@ def settings():
 app = app
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
 
 
 
