@@ -302,6 +302,27 @@ def settings():
     cursor.close()
     conn.close()
     return render_template('settings.html', user=user)
+@app.route('/delete_account', methods=['POST'])
+def delete_account():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 1. Delete the user from the database
+    cursor.execute('DELETE FROM users WHERE id = %s', (session['user_id'],))
+    
+    # Note: If you want to delete their posts and messages too, 
+    # you'd add DELETE queries for those tables here as well.
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    # 2. Clear the session to log them out
+    session.clear()
+    return redirect(url_for('register'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
