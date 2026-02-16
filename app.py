@@ -132,20 +132,37 @@ def calendar():
     return render_template('calendar.html', events=events)
 
 @app.route('/messages/<int:receiver_id>', methods=['GET', 'POST'])
+@app.route('/chat/<int:receiver_id>', methods=['GET', 'POST']) # Ensure route has methods
 def chat(receiver_id):
     if 'user_id' not in session: return redirect(url_for('login'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
+
     if request.method == 'POST':
-        msg = request.form.get('message')
-        if msg: cursor.execute('INSERT INTO messages (sender_id, receiver_id, message) VALUES (%s, %s, %s)', (session['user_id'], receiver_id, msg))
-        conn.commit()
+        msg = request.form.get('message', '').strip()
+        if msg:
+            cursor.execute('INSERT INTO messages (sender_id, receiver_id, message) VALUES (%s, %s, %s)', 
+                           (session['user_id'], receiver_id, msg))
+            conn.commit()
+        
+        # --- CRITICAL CHANGE START ---
+        cursor.close()
+        conn.close()
+        # This stops the code here and reloads the page as a 'GET' request
+        return redirect(url_for('chat', receiver_id=receiver_id))
+        # --- CRITICAL CHANGE END ---
+
+    # Everything below only happens on a 'GET' request (loading the page)
     cursor.execute('UPDATE messages SET is_read = 1 WHERE sender_id = %s AND receiver_id = %s', (receiver_id, session['user_id']))
     conn.commit()
+
     cursor.execute('SELECT sender_id, message, id FROM messages WHERE (sender_id=%s AND receiver_id=%s) OR (sender_id=%s AND receiver_id=%s) ORDER BY timestamp ASC', (session['user_id'], receiver_id, receiver_id, session['user_id']))
     chats = cursor.fetchall()
+
     cursor.execute('SELECT username FROM users WHERE id = %s', (receiver_id,))
     receiver = cursor.fetchone()
+
     cursor.close()
     conn.close()
     return render_template('chat.html', chats=chats, receiver=receiver, receiver_id=receiver_id)
@@ -298,6 +315,7 @@ def settings():
 app = app
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
 
 
 
