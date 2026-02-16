@@ -149,6 +149,17 @@ def chat(receiver_id):
     cursor.close()
     conn.close()
     return render_template('chat.html', chats=chats, receiver=receiver, receiver_id=receiver_id)
+@app.route('/delete_message/<int:msg_id>/<int:receiver_id>')
+def delete_message(msg_id, receiver_id):
+    if 'user_id' not in session: return redirect(url_for('login'))
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Ensure ONLY the person who sent the message can delete it
+    cursor.execute('DELETE FROM messages WHERE id = %s AND sender_id = %s', (msg_id, session['user_id']))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return redirect(url_for('chat', receiver_id=receiver_id))
 
 @app.route('/wallet', methods=['GET', 'POST'])
 def wallet():
@@ -287,6 +298,7 @@ def settings():
 app = app
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
 
 
 
